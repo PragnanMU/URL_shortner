@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 import redis
 import secrets
 import string
@@ -19,6 +20,9 @@ redis_client = redis.Redis(
     db=0
 )
 
+class URLRequest(BaseModel):
+    long_url: str
+
 def generate_short_code(length: int = 6) -> str:
     """Generate a random short code for the URL."""
     alphabet = string.ascii_letters + string.digits
@@ -30,16 +34,16 @@ async def root():
     return FileResponse("static/index.html")
 
 @app.post("/shorten")
-async def shorten_url(long_url: str):
+async def shorten_url(url_request: URLRequest):
     """Create a short URL for the given long URL."""
-    if not long_url:
+    if not url_request.long_url:
         raise HTTPException(status_code=400, detail="URL cannot be empty")
     
     # Generate a unique short code
     short_code = generate_short_code()
     
     # Store the mapping in Redis
-    redis_client.set(short_code, long_url)
+    redis_client.set(short_code, url_request.long_url)
     
     # Return the short URL
     return {"short_url": f"/{short_code}"}
