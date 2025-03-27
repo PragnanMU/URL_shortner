@@ -52,15 +52,67 @@ get_resource_usage() {
 # Function to run stress test
 run_stress_test() {
     print_header "Running Stress Test"
-    echo "Starting stress test with 100 concurrent requests..."
     
     # Get the service URL
     SERVICE_URL=$(minikube service url-shortener --url)
+    echo -e "${YELLOW}Service URL: $SERVICE_URL${NC}"
     
-    # Run stress test using hey
+    # Show initial state
+    echo -e "\n${YELLOW}Initial State:${NC}"
+    echo "Current pod count:"
+    kubectl get pods -l app=url-shortener | wc -l
+    
+    echo -e "\nHPA status:"
+    kubectl get hpa
+    
+    # Run multiple stress tests with increasing load
+    echo -e "\n${YELLOW}Starting stress tests...${NC}"
+    
+    # Test 1: Light load
+    echo -e "\n${GREEN}Test 1: Light Load (100 requests, 10 concurrent)${NC}"
+    hey -n 100 -c 10 $SERVICE_URL
+    
+    # Wait for HPA to adjust
+    echo -e "\n${YELLOW}Waiting for HPA to adjust...${NC}"
+    sleep 10
+    
+    # Test 2: Medium load
+    echo -e "\n${GREEN}Test 2: Medium Load (500 requests, 50 concurrent)${NC}"
+    hey -n 500 -c 50 $SERVICE_URL
+    
+    # Wait for HPA to adjust
+    echo -e "\n${YELLOW}Waiting for HPA to adjust...${NC}"
+    sleep 10
+    
+    # Test 3: Heavy load
+    echo -e "\n${GREEN}Test 3: Heavy Load (1000 requests, 100 concurrent)${NC}"
     hey -n 1000 -c 100 $SERVICE_URL
     
-    echo -e "\n${YELLOW}Stress test completed. Check the results above.${NC}"
+    # Wait for HPA to adjust
+    echo -e "\n${YELLOW}Waiting for HPA to adjust...${NC}"
+    sleep 10
+    
+    # Test 4: Very heavy load
+    echo -e "\n${GREEN}Test 4: Very Heavy Load (2000 requests, 200 concurrent)${NC}"
+    hey -n 2000 -c 200 $SERVICE_URL
+    
+    # Show final state
+    echo -e "\n${YELLOW}Final State:${NC}"
+    echo "Final pod count:"
+    kubectl get pods -l app=url-shortener | wc -l
+    
+    echo -e "\nHPA status:"
+    kubectl get hpa
+    
+    echo -e "\n${YELLOW}Resource Usage:${NC}"
+    kubectl top pods -l app=url-shortener
+    
+    # Show pod logs
+    echo -e "\n${YELLOW}Pod Logs:${NC}"
+    for pod in $(kubectl get pods -l app=url-shortener -o jsonpath='{.items[*].metadata.name}'); do
+        echo -e "\n${YELLOW}Logs for pod: $pod${NC}"
+        kubectl logs $pod --tail=50
+    done
 }
 
 # Main menu
